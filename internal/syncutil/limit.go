@@ -17,6 +17,7 @@ package syncutil
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 
 	"golang.org/x/sync/errgroup"
@@ -83,7 +84,11 @@ func Go[T any](ctx context.Context, limiter *semaphore.Weighted, fn GoFunc[T], i
 				defer region.End()
 				err := fn(egCtx, region, t)
 				if err != nil {
-					egErr.CompareAndSwap(nil, err)
+					if errors.Is(err, context.Canceled) {
+						egErr.CompareAndSwap(nil, context.Canceled)
+					} else {
+						egErr.CompareAndSwap(nil, err)
+					}
 					return err
 				}
 				return nil
